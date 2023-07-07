@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SGit": {
+      "commandName": "Project",
+      "commandLineArgs": "commit --dry-run --verbose -m \" test test \""
+    }
+  }
+}
