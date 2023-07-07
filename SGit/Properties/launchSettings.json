@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SGit": {
+      "commandName": "Project",
+      "commandLineArgs": "debug buildtime"
+    }
+  }
+}
