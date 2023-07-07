@@ -169,11 +169,24 @@ namespace SGit
             var extensions = new List<string>() { ".dll", ".exe" };
             var buildTimes = new List<DateTime>();
 
+            var fileSearchStopWatch = new Stopwatch();
+
+            if (context.Verbose)
+            {
+                fileSearchStopWatch.Start();
+            }
+
             foreach (var buildDirectory in BuildDirectories)
             {
                 buildTimes.AddRange(Directory.GetFiles(buildDirectory, "*.*", SearchOption.AllDirectories)
                     .Where(f => extensions.IndexOf(Path.GetExtension(f)) >= 0)
                     .Select(File.GetLastWriteTime).ToList());
+            }
+
+            if (context.Verbose)
+            {
+                fileSearchStopWatch.Stop();
+                Util.Log(Util.LogLevel.Verbose, $"Build file search took {fileSearchStopWatch.ElapsedMilliseconds} ms");
             }
 
             return new GitValidationResult(buildTimes.OrderDescending().First());
@@ -198,7 +211,7 @@ namespace SGit
         {
             using (var gitProcess = new Process())
             {
-                var args = string.Join(" ", context.args);
+                var args = Util.JoinProgramArgs(context.args);
 
                 if (context.Verbose)
                     Util.Log(Util.LogLevel.Verbose, $"Starting with arguments: {args}");
@@ -212,9 +225,22 @@ namespace SGit
                 startInfo.FileName = "git";
                 gitProcess.StartInfo = startInfo;
 
+                var processStopwatch = new Stopwatch();
+
+                if (context.Verbose)
+                {
+                    processStopwatch.Start();
+                }
+
                 gitProcess.Start();
 
                 gitProcess.WaitForExit();
+
+                if (context.Verbose)
+                {
+                    processStopwatch.Stop();
+                    Util.Log(Util.LogLevel.Verbose, $"Git process took: {processStopwatch.ElapsedMilliseconds} ms");
+                }
             }
         }
     }

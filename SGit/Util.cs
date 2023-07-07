@@ -55,6 +55,24 @@ namespace SGit
             var index = str.IndexOf(removal);
             return (index < 0) ? str : str.Remove(index, removal.Length);
         }
+
+        internal static string JoinProgramArgs(string[] args)
+        {
+            var argString = "";
+
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (i != 0)
+                    argString += " ";
+
+                if (args[i].Contains(' '))
+                    argString += $"\"{args[i]}\"";
+                else
+                    argString += args[i];
+            }
+
+            return argString;
+        }
         
         internal static string GetGitDirectory()
         {

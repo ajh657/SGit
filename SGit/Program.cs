@@ -12,6 +12,12 @@ namespace SGit
                 {
                     switch (context.args[0].ToLower())
                     {
+                        case "push":
+                            GitInterop.Push(context);
+                            return 0;
+                        case "commit":
+                            GitInterop.Commit(context);
+                            return 0;
                         case "debug":
                             return DebugCommands(context);
                         default:
