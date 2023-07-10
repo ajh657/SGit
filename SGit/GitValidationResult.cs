@@ -8,20 +8,45 @@ namespace SGit
 {
     public class GitValidationResult
     {
-        public bool Validated;
-        public List<string>? unStagedFileNames;
-        public DateTime? recentBuildTimeStamp;
-
-        public GitValidationResult(List<string> files)
+        public enum ValidationType
         {
-            Validated = files.Count == 0;
-            unStagedFileNames = files;
+            UnStagedFileNames,
+            RecentBuildTimeStamp,
+            MissedCheckListItems
         }
 
-        public GitValidationResult(DateTime BuildTimeStamp)
+
+        public bool Validated;
+        public List<string>? UnStagedFileNames;
+        public DateTime? RecentBuildTimeStamp;
+        public List<string>? MissedCheckListItems;
+
+        public GitValidationResult(List<string> stringList, ValidationType type)
         {
-            Validated = (DateTime.Now - BuildTimeStamp).TotalMinutes < 5;
-            recentBuildTimeStamp = BuildTimeStamp;
+            switch (type)
+            {
+                case ValidationType.UnStagedFileNames:
+                    Validated = stringList.Count == 0;
+                    UnStagedFileNames = stringList;
+                    break;
+                case ValidationType.MissedCheckListItems:
+                    Validated = stringList.Count == 0;
+                    MissedCheckListItems = stringList;
+                    break;
+                default: throw new ArgumentException();
+            }
+        }
+
+        public GitValidationResult(DateTime timeStamp, ValidationType type)
+        {
+            switch (type)
+            {
+                case ValidationType.RecentBuildTimeStamp:
+                    Validated = (DateTime.Now - timeStamp).TotalMinutes < 5;
+                    RecentBuildTimeStamp = timeStamp;
+                    break;
+                default: throw new ArgumentException();
+            }
         }
     }
 }

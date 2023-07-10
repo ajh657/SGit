@@ -2,7 +2,7 @@
   "profiles": {
     "SGit": {
       "commandName": "Project",
-      "commandLineArgs": "commit --dry-run --verbose -m \" test test \""
+      "commandLineArgs": "commit -m \"refactor and Checklist validation added\" --dry-run"
     }
   }
 }
