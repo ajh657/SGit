@@ -50,6 +50,12 @@ namespace SGit
                 case "buildtime":
                     GitInterop.DebugRecentBuildValidation(context);
                     return 0;
+                case "branch":
+                    GitInterop.DebugBranchName(context);
+                    return 0;
+                case "checklist":
+                    GitInterop.DebugBranchChecklistValidation(context);
+                    return 0;
                 default:
                     Util.LogCommandNotFound();
                     return 0;
