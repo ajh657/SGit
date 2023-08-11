@@ -18,6 +18,13 @@ namespace SGit
             Debug
         }
 
+        internal enum Operation
+        {
+            Debug,
+            Push,
+            Commit
+        }
+
         internal static void LogRaw(string message) => Console.WriteLine(message);
 
         internal static void Log(LogLevel level, string message)

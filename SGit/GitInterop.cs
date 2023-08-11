@@ -5,19 +5,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using LibGit2Sharp;
+using static SGit.Util;
+using static SGit.OperationValidationConfig;
 
 namespace SGit
 {
     internal class GitInterop
     {
-
-        private enum Operation
-        {
-            Debug,
-            Push,
-            Commit
-        }
-
         internal static void Push(GitContext context)
         {
             ValidatedGitOperation(context, Operation.Push);
@@ -74,30 +68,46 @@ namespace SGit
         {
 
             var fullValidation = true;
+            var operationValidations = GetValidationConfig(operation);
 
-            if (!ValidateStagingStatus(context))
-                fullValidation = false;
-            else
-                Util.Log(Util.LogLevel.Info, $"Staging was ok");
-
-            if (!ValidateRecentBuild(context))
-                fullValidation = false;
-            else
-                Util.Log(Util.LogLevel.Info, $"Build was recent enough");
-
-            if (!ValidateChecklistStatus(context))
-                fullValidation = false;
-            else
-                Util.Log(Util.LogLevel.Info, $"All checklist items were completed");
-
-            if (fullValidation)
+            if (operationValidations != null)
             {
-                PassToGit(context);
+                if (operationValidations.Contains(Validations.Staging))
+                {
+                    if (!ValidateStagingStatus(context))
+                        fullValidation = false;
+                    else
+                        Log(Util.LogLevel.Info, $"Staging was ok");
+                }
+
+                if (operationValidations.Contains(Validations.RecentBuild))
+                {
+                    if (!ValidateRecentBuild(context))
+                        fullValidation = false;
+                    else
+                        Log(Util.LogLevel.Info, $"Build was recent enough");
+                }
+
+                if (operationValidations.Contains(Validations.Checklist))
+                {
+                    if (!ValidateChecklistStatus(context))
+                        fullValidation = false;
+                    else
+                        Log(Util.LogLevel.Info, $"All checklist items were completed");
+                }
+
+                if (fullValidation)
+                {
+                    PassToGit(context);
+                }
+                else
+                {
+                    Log(Util.LogLevel.Error, $"Abortting {Enum.GetName(operation)} because of validation fali");
+                }
             }
-            else
-            {
-                Util.Log(Util.LogLevel.Error, $"Abortting {Enum.GetName(operation)} because of validation fali");
-            }
+            
+
+            
         }
 
         #region ValidateStaging
@@ -118,7 +128,7 @@ namespace SGit
                 }
                 else
                 {
-                    Util.Log(Util.LogLevel.Error, "How? This shoud not be possible. stageValidation");
+                    Log(Util.LogLevel.Error, "How? This shoud not be possible. stageValidation");
                 }
             }
 
@@ -144,12 +154,12 @@ namespace SGit
 
         private static void LogMissedStagingValidationFiles(GitValidationResult validationResult)
         {
-            Util.Log(Util.LogLevel.Error, $"Files were still unstaged:");
+            Log(Util.LogLevel.Error, $"Files were still unstaged:");
             if (validationResult.UnStagedFileNames != null)
             {
                 foreach (var item in validationResult.UnStagedFileNames)
                 {
-                    Util.LogAdditionalData(1, item.RemoveStringOccurence(Util.GetRepositoryRootDirectory()));
+                    LogAdditionalData(1, item.RemoveStringOccurence(GetRepositoryRootDirectory()));
                 }
             }
         }
@@ -197,7 +207,7 @@ namespace SGit
             if (context.Verbose)
             {
                 fileSearchStopWatch.Stop();
-                Util.Log(Util.LogLevel.Verbose, $"Build file search took {fileSearchStopWatch.ElapsedMilliseconds} ms");
+                Log(Util.LogLevel.Verbose, $"Build file search took {fileSearchStopWatch.ElapsedMilliseconds} ms");
             }
 
             return new GitValidationResult(buildTimes.OrderDescending().First(),GitValidationResult.ValidationType.RecentBuildTimeStamp);
@@ -205,14 +215,14 @@ namespace SGit
 
         private static void LogOldRecentBuildValidation(GitValidationResult validationResult)
         {
-            Util.Log(Util.LogLevel.Error, "The most recent build was too old");
+            Log(Util.LogLevel.Error, "The most recent build was too old");
             if (validationResult.RecentBuildTimeStamp != null)
             {
-                Util.LogAdditionalData(1,$"Oldest build was {validationResult.RecentBuildTimeStamp.Value.ToString("g")}");
+                LogAdditionalData(1,$"Oldest build was {validationResult.RecentBuildTimeStamp.Value.ToString("g")}");
             }
             else
             {
-                Util.LogAdditionalData(1, "Somehow the timestamp was null");
+                LogAdditionalData(1, "Somehow the timestamp was null");
             }
         }
 
@@ -236,27 +246,27 @@ namespace SGit
                 }
                 else
                 {
-                    Util.Log(Util.LogLevel.Error, "How? This shoud not be possible. ValidateChecklistStatus");
+                    Log(Util.LogLevel.Error, "How? This shoud not be possible. ValidateChecklistStatus");
                 }
 
                 return true;
             }
             catch (FileNotFoundException fe)
             {
-                Util.Log(Util.LogLevel.Error, "Checklist file was not found");
-                Util.LogError(fe);
+                Log(Util.LogLevel.Error, "Checklist file was not found");
+                LogError(fe);
                 return false;
             }
         }
 
         private static void LogMissedChecklistItems(GitValidationResult validationResult)
         {
-            Util.Log(Util.LogLevel.Error, $"Some checklist items were maked uncomplete:");
+            Log(Util.LogLevel.Error, $"Some checklist items were maked uncomplete:");
             if (validationResult.MissedCheckListItems != null)
             {
                 foreach (var item in validationResult.MissedCheckListItems)
                 {
-                    Util.LogAdditionalData(1, item.RemoveStringOccurence(Util.GetRepositoryRootDirectory()));
+                    LogAdditionalData(1, item.RemoveStringOccurence(GetRepositoryRootDirectory()));
                 }
             }
         }
@@ -296,10 +306,10 @@ namespace SGit
         {
             using (var gitProcess = new Process())
             {
-                var args = Util.JoinProgramArgs(context.args);
+                var args = JoinProgramArgs(context.args);
 
                 if (context.Verbose)
-                    Util.Log(Util.LogLevel.Verbose, $"Starting with arguments: {args}");
+                    Log(Util.LogLevel.Verbose, $"Starting with arguments: {args}");
 
                 var startInfo = gitProcess.StartInfo;
 
@@ -324,7 +334,7 @@ namespace SGit
                 if (context.Verbose)
                 {
                     processStopwatch.Stop();
-                    Util.Log(Util.LogLevel.Verbose, $"Git process took: {processStopwatch.ElapsedMilliseconds} ms");
+                    Log(Util.LogLevel.Verbose, $"Git process took: {processStopwatch.ElapsedMilliseconds} ms");
                 }
             }
         }
