@@ -12,13 +12,14 @@ namespace SGit
         {
             UnStagedFileNames,
             RecentBuildTimeStamp,
-            MissedCheckListItems
+            MissedCheckListItems,
+            BuildAftherChecklistCheck
         }
 
 
         public bool Validated;
         public List<string>? UnStagedFileNames;
-        public DateTime? RecentBuildTimeStamp;
+        public DateTime? BuildTimeStamp;
         public List<string>? MissedCheckListItems;
 
         public GitValidationResult(List<string> stringList, ValidationType type)
@@ -43,10 +44,16 @@ namespace SGit
             {
                 case ValidationType.RecentBuildTimeStamp:
                     Validated = (DateTime.Now - timeStamp).TotalMinutes < 5;
-                    RecentBuildTimeStamp = timeStamp;
+                    BuildTimeStamp = timeStamp;
                     break;
                 default: throw new ArgumentException();
             }
+        }
+
+        public GitValidationResult(DateTime checkListUpdateTime, DateTime buildTime)
+        {
+            Validated = checkListUpdateTime < buildTime;
+            BuildTimeStamp = buildTime;
         }
     }
 }

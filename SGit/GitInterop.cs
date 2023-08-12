@@ -72,6 +72,7 @@ namespace SGit
 
             if (operationValidations != null)
             {
+
                 if (operationValidations.Contains(Validations.Staging))
                 {
                     if (!ValidateStagingStatus(context))
@@ -96,6 +97,14 @@ namespace SGit
                         Log(Util.LogLevel.Info, $"All checklist items were completed");
                 }
 
+                if (operationValidations.Contains(Validations.BuildNewerThanChecklist))
+                {
+                    if (!ValidateBuildAfterChecklist(context))
+                        fullValidation = false;
+                    else
+                        Log(Util.LogLevel.Info, $"Build was newer than last checklist update");
+                }
+
                 if (fullValidation)
                 {
                     PassToGit(context);
@@ -105,9 +114,9 @@ namespace SGit
                     Log(Util.LogLevel.Error, $"Abortting {Enum.GetName(operation)} because of validation fali");
                 }
             }
-            
 
-            
+
+
         }
 
         #region ValidateStaging
@@ -129,13 +138,14 @@ namespace SGit
                 else
                 {
                     Log(Util.LogLevel.Error, "How? This shoud not be possible. stageValidation");
+                    return false;
                 }
             }
 
             return true;
         }
 
-        private static GitValidationResult CheckStagingStatus (RepositoryStatus status)
+        private static GitValidationResult CheckStagingStatus(RepositoryStatus status)
         {
 
             var ValidationList = new List<string>();
@@ -180,22 +190,39 @@ namespace SGit
                     return false;
                 }
             }
+            else
+            {
+                return false;
+            }
 
             return true;
         }
 
         private static GitValidationResult CheckRecentBuildStatus(GitContext context)
         {
-            var BuildDirectories = Directory.GetDirectories(context.RepoRootDirectory, "bin", SearchOption.AllDirectories);
-            var extensions = new List<string>() { ".dll", ".exe" };
-            var buildTimes = new List<DateTime>();
-
             var fileSearchStopWatch = new Stopwatch();
 
             if (context.Verbose)
             {
                 fileSearchStopWatch.Start();
             }
+
+            var lastBuildTime = GetLastBuildTime(context);
+
+            if (context.Verbose)
+            {
+                fileSearchStopWatch.Stop();
+                Log(Util.LogLevel.Verbose, $"Build file search took {fileSearchStopWatch.ElapsedMilliseconds} ms");
+            }
+
+            return new GitValidationResult(lastBuildTime, GitValidationResult.ValidationType.RecentBuildTimeStamp);
+        }
+
+        private static DateTime GetLastBuildTime(GitContext context)
+        {
+            var BuildDirectories = Directory.GetDirectories(context.RepoRootDirectory, "bin", SearchOption.AllDirectories);
+            var buildTimes = new List<DateTime>();
+            var extensions = new List<string>() { ".dll", ".exe" };
 
             foreach (var buildDirectory in BuildDirectories)
             {
@@ -204,21 +231,15 @@ namespace SGit
                     .Select(File.GetLastWriteTime).ToList());
             }
 
-            if (context.Verbose)
-            {
-                fileSearchStopWatch.Stop();
-                Log(Util.LogLevel.Verbose, $"Build file search took {fileSearchStopWatch.ElapsedMilliseconds} ms");
-            }
-
-            return new GitValidationResult(buildTimes.OrderDescending().First(),GitValidationResult.ValidationType.RecentBuildTimeStamp);
+            return buildTimes.OrderDescending().First();
         }
 
         private static void LogOldRecentBuildValidation(GitValidationResult validationResult)
         {
             Log(Util.LogLevel.Error, "The most recent build was too old");
-            if (validationResult.RecentBuildTimeStamp != null)
+            if (validationResult.BuildTimeStamp != null)
             {
-                LogAdditionalData(1,$"Oldest build was {validationResult.RecentBuildTimeStamp.Value.ToString("g")}");
+                LogAdditionalData(1, $"Oldest build was {validationResult.BuildTimeStamp.Value.ToString("g")}");
             }
             else
             {
@@ -247,6 +268,7 @@ namespace SGit
                 else
                 {
                     Log(Util.LogLevel.Error, "How? This shoud not be possible. ValidateChecklistStatus");
+                    return false;
                 }
 
                 return true;
@@ -276,20 +298,18 @@ namespace SGit
             using (var repo = new Repository(context.GitDirectory))
             {
                 var missedItems = new List<string>();
-                var branchName = GetBranchName(repo);
+                var branchName = GetBranchName(repo) ?? throw new FileNotFoundException();
 
-                if (branchName != null)
-                {
-                    var lines = File.ReadAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "CheckLists", $"{branchName}.txt"));
-                    missedItems.AddRange(lines.Where((x) => !x.EndsWith('-')));
-                }
-                else
-                {
-                    throw new FileNotFoundException();
-                }
+                var lines = File.ReadAllLines(GetCheckListFilePath(branchName));
+                missedItems.AddRange(lines.Where((x) => !x.EndsWith('-')));
 
                 return new GitValidationResult(missedItems, GitValidationResult.ValidationType.MissedCheckListItems);
             }
+        }
+
+        private static string GetCheckListFilePath(string branchName)
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "CheckLists", $"{branchName}.txt");
         }
 
         private static string? GetBranchName(Repository repo)
@@ -298,6 +318,48 @@ namespace SGit
             if (branch != null)
                 return branch.FriendlyName;
             return null;
+        }
+
+        #endregion
+
+        #region ValidateBuildAfterChecklist
+
+        private static bool ValidateBuildAfterChecklist(GitContext context)
+        {
+            var validationResult = CheckIfBuildAfterChecklist(context);
+            if (validationResult != null)
+            {
+                if (!validationResult.Validated)
+                {
+                    LogLastBuildTime(validationResult);
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static void LogLastBuildTime(GitValidationResult validationResult)
+        {
+            Log(Util.LogLevel.Error, $"Last build was before checklist update: {validationResult.BuildTimeStamp}");
+        }
+
+        private static GitValidationResult CheckIfBuildAfterChecklist(GitContext context)
+        {
+            using (var repo = new Repository(context.GitDirectory))
+            {
+                var branchName = GetBranchName(repo) ?? throw new FileNotFoundException();
+
+                var fileInfo = new FileInfo(GetCheckListFilePath(branchName)) ?? throw new FileNotFoundException();
+
+                var checkListLastUpdated = fileInfo.LastWriteTime;
+                var buildLastBuildTime = GetLastBuildTime(context);
+                return new GitValidationResult(checkListLastUpdated,buildLastBuildTime);
+            }
         }
 
         #endregion
