@@ -10,7 +10,7 @@ using static SGit.OperationValidationConfig;
 
 namespace SGit
 {
-    internal class GitInterop
+    internal class GitInterop : Debug
     {
         internal static void Push(GitContext context)
         {
@@ -22,58 +22,19 @@ namespace SGit
             ValidatedGitOperation(context, Operation.Commit);
         }
 
-        #region Debug
-
-        internal static void DebugBranchName(GitContext context)
-        {
-            using (var repo = new Repository(context.GitDirectory))
-            {
-                var branchName = "";
-
-                branchName = GetBranchName(repo);
-
-                Console.WriteLine(branchName);
-            }
-        }
-
-        internal static void DebugBranchChecklistValidation(GitContext context)
-        {
-            ValidateChecklistStatus(context);
-        }
-
-        internal static void DebugStatus(GitContext context)
-        {
-            using (var repo = new Repository(context.GitDirectory))
-            {
-                foreach (var item in repo.RetrieveStatus())
-                {
-                    Console.WriteLine(item.State);
-                }
-            }
-        }
-
-        internal static void DebugStatusValidation(GitContext context)
-        {
-            ValidateStagingStatus(context);
-        }
-
-        internal static void DebugRecentBuildValidation(GitContext context)
-        {
-            ValidateRecentBuild(context);
-        }
-
-        #endregion
-
         private static void ValidatedGitOperation(GitContext context, Operation operation)
         {
 
             var fullValidation = true;
             var operationValidations = GetValidationConfig(operation);
+            var skippedValidations = context.Arguments.GetNamedArguments<Validations>(Constants.CommandArguments.skipValidation.GetArgument());
+            context.Arguments = CleanArguments(context.Arguments, Constants.CommandArguments.skipValidation.GetArgument());
+
 
             if (operationValidations != null)
             {
 
-                if (operationValidations.Contains(Validations.Staging))
+                if (operationValidations.Contains(Validations.Staging) && !skippedValidations.Contains(Validations.Staging))
                 {
                     if (!ValidateStagingStatus(context))
                         fullValidation = false;
@@ -81,7 +42,7 @@ namespace SGit
                         Log(Util.LogLevel.Info, $"Staging was ok");
                 }
 
-                if (operationValidations.Contains(Validations.RecentBuild))
+                if (operationValidations.Contains(Validations.RecentBuild) && !skippedValidations.Contains(Validations.RecentBuild))
                 {
                     if (!ValidateRecentBuild(context))
                         fullValidation = false;
@@ -89,15 +50,15 @@ namespace SGit
                         Log(Util.LogLevel.Info, $"Build was recent enough");
                 }
 
-                if (operationValidations.Contains(Validations.Checklist))
+                if (operationValidations.Contains(Validations.Checklist) && !skippedValidations.Contains(Validations.Checklist))
                 {
-                    if (!ValidateChecklistStatus(context))
+                    if (!ValidateChecklistStatus(context) && !skippedValidations.Contains(Validations.Checklist))
                         fullValidation = false;
                     else
                         Log(Util.LogLevel.Info, $"All checklist items were completed");
                 }
 
-                if (operationValidations.Contains(Validations.BuildNewerThanChecklist))
+                if (operationValidations.Contains(Validations.BuildNewerThanChecklist) && !skippedValidations.Contains(Validations.BuildNewerThanChecklist))
                 {
                     if (!ValidateBuildAfterChecklist(context))
                         fullValidation = false;
@@ -121,23 +82,15 @@ namespace SGit
 
         #region ValidateStaging
 
-        private static bool ValidateStagingStatus(GitContext context)
+        internal static bool ValidateStagingStatus(GitContext context)
         {
             using (var repo = new Repository(context.GitDirectory))
             {
                 var stageValidation = CheckStagingStatus(repo.RetrieveStatus(new StatusOptions()));
 
-                if (stageValidation != null)
+                if (!stageValidation.Validated)
                 {
-                    if (!stageValidation.Validated)
-                    {
-                        LogMissedStagingValidationFiles(stageValidation);
-                        return false;
-                    }
-                }
-                else
-                {
-                    Log(Util.LogLevel.Error, "How? This shoud not be possible. stageValidation");
+                    LogMissedStagingValidationFiles(stageValidation);
                     return false;
                 }
             }
@@ -178,20 +131,13 @@ namespace SGit
 
         #region ValidateRecentBuild
 
-        private static bool ValidateRecentBuild(GitContext context)
+        internal static bool ValidateRecentBuild(GitContext context)
         {
             var recentValidation = CheckRecentBuildStatus(context);
 
-            if (recentValidation != null)
+            if (!recentValidation.Validated)
             {
-                if (!recentValidation.Validated)
-                {
-                    LogOldRecentBuildValidation(recentValidation);
-                    return false;
-                }
-            }
-            else
-            {
+                LogOldRecentBuildValidation(recentValidation);
                 return false;
             }
 
@@ -251,23 +197,15 @@ namespace SGit
 
         #region ValidateChecklist
 
-        private static bool ValidateChecklistStatus(GitContext context)
+        internal static bool ValidateChecklistStatus(GitContext context)
         {
             try
             {
                 var validationResult = CheckCheckListItems(context);
 
-                if (validationResult != null)
+                if (!validationResult.Validated)
                 {
-                    if (!validationResult.Validated)
-                    {
-                        LogMissedChecklistItems(validationResult);
-                        return false;
-                    }
-                }
-                else
-                {
-                    Log(Util.LogLevel.Error, "How? This shoud not be possible. ValidateChecklistStatus");
+                    LogMissedChecklistItems(validationResult);
                     return false;
                 }
 
@@ -307,36 +245,16 @@ namespace SGit
             }
         }
 
-        private static string GetCheckListFilePath(string branchName)
-        {
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "CheckLists", $"{branchName}.txt");
-        }
-
-        private static string? GetBranchName(Repository repo)
-        {
-            var branch = repo.Branches.FirstOrDefault((x) => x.IsCurrentRepositoryHead);
-            if (branch != null)
-                return branch.FriendlyName;
-            return null;
-        }
-
         #endregion
 
         #region ValidateBuildAfterChecklist
 
-        private static bool ValidateBuildAfterChecklist(GitContext context)
+        internal static bool ValidateBuildAfterChecklist(GitContext context)
         {
             var validationResult = CheckIfBuildAfterChecklist(context);
-            if (validationResult != null)
+            if (!validationResult.Validated)
             {
-                if (!validationResult.Validated)
-                {
-                    LogLastBuildTime(validationResult);
-                    return false;
-                }
-            }
-            else
-            {
+                LogLastBuildTime(validationResult);
                 return false;
             }
 
@@ -368,14 +286,14 @@ namespace SGit
         {
             using (var gitProcess = new Process())
             {
-                var args = context.args.JoinProgramArgs();
+                var args = context.Arguments.JoinProgramArgs();
 
                 if (context.Verbose)
                     Log(Util.LogLevel.Verbose, $"Starting with arguments: {args}");
 
                 var startInfo = gitProcess.StartInfo;
 
-                if (context.args.Length > 0)
+                if (context.Arguments.Length > 0)
                 {
                     startInfo.Arguments = args;
                 }

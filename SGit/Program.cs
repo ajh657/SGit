@@ -8,9 +8,9 @@ namespace SGit
 
             try
             {
-                if (context.args.Length > 0)
+                if (context.Arguments.Length > 0)
                 {
-                    switch (context.args[0].ToLower())
+                    switch (context.Arguments[0].ToLower())
                     {
                         case "push":
                             GitInterop.Push(context);
@@ -34,52 +34,78 @@ namespace SGit
             }
             catch (Exception e)
             {
-
-                return Util.LogError(e);
+                Util.LogError(e);
+                return -1;
 
             }
         }
 
         internal static int DebugCommands(GitContext context)
         {
-            switch (context.args[1].ToLower())
+            switch (context.Arguments[1].ToLower())
             {
                 case "status":
                     DebugStatusCommands(context);
                     return 0;
                 case "buildtime":
-                    GitInterop.DebugRecentBuildValidation(context);
+                    Debug.DebugRecentBuildValidation(context);
                     return 0;
                 case "branch":
-                    GitInterop.DebugBranchName(context);
+                    Debug.DebugBranchName(context);
                     return 0;
                 case "checklist":
-                    GitInterop.DebugBranchChecklistValidation(context);
+                    Debug.DebugBranchChecklistValidation(context);
                     return 0;
+                case "util":
+                    DebugUtils(context);
+                    return 0;
+
                 default:
                     Util.LogCommandNotFound();
-                    return 0;
+                    return -1;
             }
         }
 
         internal static int DebugStatusCommands(GitContext context)
         {
-            if (context.args.Length >= 3)
+            if (context.Arguments.Length >= 3)
             {
-                switch (context.args[2].ToLower())
+                switch (context.Arguments[2].ToLower())
                 {
                     case "validation":
-                        GitInterop.DebugStatusValidation(context);
+                        Debug.DebugStatusValidation(context);
                         return 0;
                     default:
                         Util.LogCommandNotFound();
-                        return 0;
+                        return 1;
                 }
             }
             else
             {
-                GitInterop.DebugStatus(context);
+                Debug.DebugStatus(context);
                 return 0;
+            }
+        }
+
+        internal static int DebugUtils(GitContext context)
+        {
+            if (context.Arguments.Length >= 3)
+            {
+                switch (context.Arguments[2].ToLower())
+                {
+                    case "parameter":
+                        Debug.DebugUseArguments(context);
+                        return 0;
+
+                    default:
+                        Util.LogCommandNotFound();
+                        return -1;
+                }
+            }
+            else
+            {
+                Util.LogCommandNotFound();
+                return 1;
             }
         }
     }

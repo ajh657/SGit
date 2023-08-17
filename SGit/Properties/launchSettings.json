@@ -2,7 +2,7 @@
   "profiles": {
     "SGit": {
       "commandName": "Project",
-      "commandLineArgs": "commit -m \"refactor and Checklist validation added\" --dry-run"
+      "commandLineArgs": "debug util parameter --skipvalidation \"Value1 Value2\""
     }
   }
 }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using LibGit2Sharp;
 
 namespace SGit
 {
@@ -49,10 +50,19 @@ namespace SGit
             LogRaw(indentedMessage);
         }
 
-        internal static int LogError(Exception exception)
+        internal static void LogError(Exception exception)
         {
             Log(LogLevel.Error, $"Exception has occurred.{Environment.NewLine} Message:{exception.Message} {Environment.NewLine} Stack trace:{exception.StackTrace}");
-            return 1;
+        }
+
+        internal static void LogError(string message)
+        {
+            Log(LogLevel.Error, $"Non fatal error has occured:{Environment.NewLine}{message}");
+        }
+
+        internal static void LogDebug(string message)
+        {
+            Log(LogLevel.Debug, message);
         }
 
         internal static void LogCommandNotFound()
@@ -83,10 +93,60 @@ namespace SGit
 
             return argString;
         }
-        
+
+        internal static List<T> GetNamedArguments<T>(this string[] args, string name)
+        {
+            var index = args.ToList().IndexOf(name.ToLower());
+
+            if (index == -1 || args.Length < index + 1)
+                return new List<T>();
+
+            var stringArgument = args[index+1];
+
+            var items = new List<T>();
+
+            foreach (var item in stringArgument.Split(' '))
+            {
+                if (typeof(T).IsEnum)
+                {
+                    items.Add((T)Enum.Parse(typeof(T), item));
+                }
+                else
+                {
+                    items.Add((T)Convert.ChangeType(item, typeof(T)));
+                }
+            }
+            return items;
+
+        }
+
+        internal static string[] CleanArguments(string[] args, string name)
+        {
+            var index = args.ToList().IndexOf(name.ToLower());
+            return args.Where((x, i) => !(i == index || i == index + 1)).ToArray();
+        }
+
+        internal static string GetArgument(this string argument)
+        {
+            return $"--{argument}";
+        }
+
+        internal static string GetCheckListFilePath(string branchName)
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "CheckLists", $"{branchName}.txt");
+        }
+
+        internal static string? GetBranchName(Repository repo)
+        {
+            var branch = repo.Branches.FirstOrDefault((x) => x.IsCurrentRepositoryHead);
+            if (branch != null)
+                return branch.FriendlyName;
+            return null;
+        }
+
         internal static string GetGitDirectory()
         {
-            return Path.Combine(GetRepositoryRootDirectory(), Constants.gitFolder);
+            return Path.Combine(GetRepositoryRootDirectory(), Constants.GIT.gitFolder);
         }
 
         internal static string GetRepositoryRootDirectory()
@@ -95,9 +155,9 @@ namespace SGit
 
             var directories = Directory.GetDirectories(currentDirectory);
 
-            while (!directories.Contains(Path.Combine(currentDirectory, Constants.gitFolder)))
+            while (!directories.Contains(Path.Combine(currentDirectory, Constants.GIT.gitFolder)))
             {
-                currentDirectory = Path.GetFullPath(Path.Combine(currentDirectory, Constants.parentDirectory));
+                currentDirectory = Path.GetFullPath(Path.Combine(currentDirectory, Constants.GIT.parentDirectory));
                 directories = Directory.GetDirectories(currentDirectory);
             }
 

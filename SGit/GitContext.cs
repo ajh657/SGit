@@ -6,9 +6,17 @@ using System.Threading.Tasks;
 
 namespace SGit
 {
-    public record GitContext(string[] args, bool Verbose)
+    public class GitContext
     {
         public string GitDirectory = Util.GetGitDirectory();
         public string RepoRootDirectory = Util.GetRepositoryRootDirectory();
+        public string[] Arguments;
+        public bool Verbose;
+
+        public GitContext(string[] args, bool verbose)
+        {
+            Arguments = args;
+            Verbose = verbose;
+        }
     }
 }
