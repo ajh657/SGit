@@ -4,9 +4,17 @@ namespace SGit
     {
         internal static class Constants
         {
-            internal const string rootDirectory = ".";
-            internal const string parentDirectory = "..\\";
-            internal const string gitFolder = ".git";
+            internal static class GIT
+            {
+                internal const string rootDirectory = ".";
+                internal const string parentDirectory = "..\\";
+                internal const string gitFolder = ".git";
+            }
+
+            internal static class CommandArguments
+            {
+                internal const string skipValidation = "skipvalidation";
+            }
 
         }
     }
