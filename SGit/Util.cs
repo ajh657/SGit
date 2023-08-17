@@ -25,7 +25,10 @@ namespace SGit
             Commit
         }
 
-        internal static void LogRaw(string message) => Console.WriteLine(message);
+        internal static void LogRaw(string message)
+        {
+            Console.WriteLine(message);
+        }
 
         internal static void Log(LogLevel level, string message)
         {
@@ -63,7 +66,7 @@ namespace SGit
             return (index < 0) ? str : str.Remove(index, removal.Length);
         }
 
-        internal static string JoinProgramArgs(string[] args)
+        internal static string JoinProgramArgs(this string[] args)
         {
             var argString = "";
 

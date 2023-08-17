@@ -178,7 +178,7 @@ namespace SGit
 
         #region ValidateRecentBuild
 
-        static bool ValidateRecentBuild(GitContext context)
+        private static bool ValidateRecentBuild(GitContext context)
         {
             var recentValidation = CheckRecentBuildStatus(context);
 
@@ -368,7 +368,7 @@ namespace SGit
         {
             using (var gitProcess = new Process())
             {
-                var args = JoinProgramArgs(context.args);
+                var args = context.args.JoinProgramArgs();
 
                 if (context.Verbose)
                     Log(Util.LogLevel.Verbose, $"Starting with arguments: {args}");
