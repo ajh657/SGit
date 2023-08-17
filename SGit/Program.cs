@@ -2,7 +2,7 @@ namespace SGit
 {
     internal class Program
     {
-        static int Main(string[] args)
+        internal static int Main(string[] args)
         {
             var context = new GitContext(args, args.Contains("--verbose"));
 
@@ -24,19 +24,19 @@ namespace SGit
                             GitInterop.PassToGit(context);
                             return 0;
                     }
-                    
+
                 }
                 else
                 {
                     GitInterop.PassToGit(context);
                     return 0;
-                }                
+                }
             }
             catch (Exception e)
             {
-                
+
                 return Util.LogError(e);
-             
+
             }
         }
 
